@@ -12,7 +12,7 @@ Afterwards, run
 
 `python3 api.py`
 
-You should get a message in the form of ` * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)`
+You should get a message in the form of `Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)`
 
 ## Front-end application
 
