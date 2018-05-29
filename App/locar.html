@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+	<!-- CSS Files -->
+	<!-- Bootstrap -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" 
+		integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" 
+		crossorigin="anonymous"/>
+	<!-- Leaflet -->
+	 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css"
+	   integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ=="
+	   crossorigin=""/>
+	<!-- Slider -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.0.2/css/bootstrap-slider.css"/>
+	<!-- Duration Picker -->
+	<link rel='stylesheet' href='css/duration-picker.css'/>
+	<!-- LOCAR -->
+	<link rel='stylesheet' href='css/locar.css'/>
+
+	<!-- JS Files -->
+	<!-- jQuery -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<!-- Bootstrap -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" 
+		integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" 
+		crossorigin="anonymous"></script>
+	<!-- Leaflet -->
+	<script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"
+	   integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw=="
+	   crossorigin=""></script>
+	<!-- Slider -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.0.2/bootstrap-slider.js"></script>
+	<!-- Numbered Markers for Leaflet -->
+	<script src="js/numbered_markers.js"></script>
+	<!-- Duration Picker -->
+	<script src="js/duration-picker.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+	<div class="panel panel-default" style='height: 100%'>
+		<div class="panel-heading">Locar</div>
+		<div class="panel-body">
+
+			<div class="row display-flex">
+				<div class='col-xs-12 col-sm-12 col-md-12 col-lg-12'>
+					<div class="text-center" style='margin-top: 10px;'>
+							<div class="btn-group" id='mapControls' data-toggle="buttons">
+						  <label class="btn btn-success">
+						    <input type="radio" name="options" id="btnStart" value='start'> <i class="glyphicon glyphicon-flag"></i>
+						  </label>
+						  <label class="btn btn-danger">
+						    <input type="radio" name="options" id="btnEnd" value='end'> <i class="glyphicon glyphicon-flag"></i>
+						  </label>
+						  <label class="btn btn-primary active">
+						    <input type="radio" name="options" id="btnPackage" value='package' checked> <i class="glyphicon glyphicon-gift"></i>
+						  </label>
+						</div>
+					</div>
+
+					<div id="locarMap" style='height: 500px; margin-top: 5px;'></div>
+				</div>
+			</div>
+
+			<div class="row display-flex" style='margin-top: 10px;'>
+				<div class='col-xs-6 col-sm-6 col-md-6 col-lg-6'>
+					<div class="panel panel-default">
+						<div class="panel-heading">A <small>(green)</small> to B <small>(red)</small></div>
+						<div class="panel-body">
+							<div class="control-group my-group-control text-center">
+								<input class="form-control" id="routingTradeOff" data-slider-id='ex1Slider' type="text" data-slider-min="0" data-slider-max="1" data-slider-step="0.1" data-slider-value="0.5"/>
+								<button style='margin-left: 20px;' type="button" class="btn btn-primary" id='createRouteAB'><i class="glyphicon glyphicon-road"></i></button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class='col-xs-6 col-sm-6 col-md-6 col-lg-6'>
+					<div class="panel panel-default">
+						<div class="panel-heading">Ride around <small>(red marker on map ignored)</small></div>
+						<div class="panel-body">
+							<div class="control-group my-group-control text-center">
+								<input id="maxTime" type="text" name="duration-picker">
+								<button style='margin-left: 20px;' type="button" class="btn btn-primary" id='createRouteAB'><i class="glyphicon glyphicon-euro"></i></button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+		</div>
+	</div>
+</div>
+
+
+  <script>
+  	var routingSlider = $('#routingTradeOff').slider({});
+
+  	$('#maxTime').durationPicker({
+  		hours: {
+		    label: 'h',
+		    min: 0,
+		    max: 24
+		},
+		minutes: {
+		    label: 'm',
+		    min: 0,
+		    max: 60
+		},
+	    type: 'number',
+	    responsive: true
+  	});
+
+  	var poissonTime = function(rate){
+  		return parseInt(-Math.log(1.0 - Math.random()) / rate);
+  	};
+
+  	var map = L.map('locarMap').setView([51.1053969, 3.2730670999999347], 13);
+
+	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+	}).addTo(map);
+
+	var cntr = 1;
+	var start = true;
+	var packageStartLocation = null;
+	var currentTime = 0;
+
+	var packageLocations = [];
+	
+	var rideStartLocation = [51.104956, 3.267240];
+	var startMarker = new L.marker(
+		rideStartLocation, {
+			icon: L.icon({iconUrl: 'images/marker_start.png', iconSize: [26, 42], iconAnchor: [13, 42]})
+		}
+	).addTo(map);
+	startMarker.bindPopup("START");
+
+	var rideEndLocation = [51.155023, 3.235455];
+	var endMarker = new L.marker(
+		rideEndLocation, {
+			icon: L.icon({iconUrl: 'images/marker_end.png', iconSize: [26, 42], iconAnchor: [13, 42]})
+		}
+	).addTo(map);
+	endMarker.bindPopup("END");
+
+	map.on('click', function(e){
+		selectedBtn = $('#mapControls label.active input').val();
+		if(selectedBtn == 'package'){
+			icon_url = (start) ? 'images/marker_hole_start.png' : 'images/marker_hole_end.png';
+			var newMarker = new L.marker(
+				e.latlng, {
+					icon: new L.NumberedDivIcon({number: cntr, iconUrl: icon_url})
+				}
+			).addTo(map);
+
+			newMarker.bindPopup("<b>Time:</b>  " + String(currentTime))
+
+			if(!start) {
+				cntr++;
+				packageLocations.push({'coordinate': [packageStartLocation, e.latlng], 'time': currentTime});
+				currentTime += poissonTime(0.1);
+			} else {
+				packageStartLocation = e.latlng;
+			}
+
+			start = !start
+		} else if(selectedBtn == 'start') {
+			map.removeLayer(startMarker);
+			startMarker = new L.marker(
+				e.latlng, {
+					icon: L.icon({iconUrl: 'images/marker_start.png', iconSize: [26, 42], iconAnchor: [13, 42]})
+				}
+			).addTo(map);
+			startMarker.bindPopup("START");
+		} else {
+			map.removeLayer(endMarker);
+			endMarker = new L.marker(
+				e.latlng, {
+					icon: L.icon({iconUrl: 'images/marker_end.png', iconSize: [26, 42], iconAnchor: [13, 42]})
+				}
+			).addTo(map);
+			endMarker.bindPopup("END");
+		}
+	});
+
+	$('#createRouteAB').on('click', function(e){
+		console.log('Sending POST request to API...');
+		console.log(
+			JSON.stringify({
+				'locations': packageLocations,
+				'start': startMarker._latlng,
+				'end': endMarker._latlng,
+				'kappa': routingSlider.slider('getValue')
+			})
+		);
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = checkData;
+	    xhttp.open("POST", "http://localhost:5000/route", true);
+	    xhttp.setRequestHeader("Content-type", "application/json");
+	    xhttp.setRequestHeader("Access-Control-Allow-Origin", "*");
+	    xhttp.setRequestHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
+	    xhttp.setRequestHeader("Access-Control-Allow-Headers", "Origin, Content-Type, X-Auth-Token");
+	    xhttp.send(JSON.stringify({
+			'locations': packageLocations,
+			'start': startMarker._latlng,
+			'end': endMarker._latlng,
+			'kappa': routingSlider.slider('getValue')
+		}));
+
+	    function clearMap() {
+		    for(i in map._layers) {
+		        if(map._layers[i]._path != undefined) {
+		            try {
+		                map.removeLayer(map._layers[i]);
+		            }
+		            catch(e) {
+		                console.log("problem with " + e + map._layers[i]);
+		            }
+		        }
+		    }
+		}
+
+	    function checkData(){
+	    	path = JSON.parse(xhttp.response);
+
+		    clearMap();
+
+		    for(var i = 0; i<path.length-1; i++){
+		    	line = new L.Polyline([path[i], path[i+1]]);
+		    	line.addTo(map);
+		    }
+		}
+	});
+  </script>
+
+</body>
+</html>
